@@ -8,6 +8,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { DatabaseService } from '../services/DatabaseService';
 import { FileScannerService } from '../services/FileScannerService';
+import { OrganizationService } from '../services/OrganizationService';
 import type { ScanConfig } from '../../shared/types';
 
 const APP_VERSION = '0.0.1';
@@ -15,11 +16,12 @@ const APP_VERSION = '0.0.1';
 interface HandlerContext {
   db: DatabaseService;
   scanner: FileScannerService;
+  organizer: OrganizationService;
   mainWindowGetter: () => BrowserWindow | null;
 }
 
 export function registerIpcHandlers(ctx: HandlerContext): void {
-  const { db, scanner, mainWindowGetter } = ctx;
+  const { db, scanner, organizer, mainWindowGetter } = ctx;
 
   // --- Window controls ---
   ipcMain.on('window-minimize', () => mainWindowGetter()?.minimize());
@@ -56,31 +58,24 @@ export function registerIpcHandlers(ctx: HandlerContext): void {
   ipcMain.handle('get-drives', async () => {
     const drives: { letter: string; path: string; label: string }[] = [];
     if (process.platform === 'win32') {
-      // Windows: check A-Z
       for (let i = 65; i <= 90; i++) {
         const letter = String.fromCharCode(i);
         const drivePath = `${letter}:\\`;
         try {
           fs.accessSync(drivePath);
           drives.push({ letter, path: drivePath, label: `${letter}:` });
-        } catch {
-          // Drive not available
-        }
+        } catch { /* Drive not available */ }
       }
     } else {
-      // macOS/Linux: return root and home
       drives.push({ letter: '/', path: '/', label: 'Root' });
       drives.push({ letter: 'H', path: os.homedir(), label: 'Home' });
-      // Check for mounted volumes on macOS
       if (process.platform === 'darwin') {
         try {
           const volumes = fs.readdirSync('/Volumes');
           for (const vol of volumes) {
             drives.push({ letter: vol[0], path: `/Volumes/${vol}`, label: vol });
           }
-        } catch {
-          // Ignore
-        }
+        } catch { /* Ignore */ }
       }
     }
     return drives;
@@ -91,15 +86,9 @@ export function registerIpcHandlers(ctx: HandlerContext): void {
       const entries = fs.readdirSync(folderPath, { withFileTypes: true });
       return entries
         .filter((e) => e.isDirectory())
-        .map((e) => ({
-          name: e.name,
-          path: path.join(folderPath, e.name),
-          hasChildren: true,
-        }))
+        .map((e) => ({ name: e.name, path: path.join(folderPath, e.name), hasChildren: true }))
         .sort((a, b) => a.name.localeCompare(b.name));
-    } catch {
-      return [];
-    }
+    } catch { return []; }
   });
 
   ipcMain.handle('get-folder-files', async (_event, folderPath: string) => {
@@ -107,22 +96,14 @@ export function registerIpcHandlers(ctx: HandlerContext): void {
       const entries = fs.readdirSync(folderPath, { withFileTypes: true });
       return entries
         .filter((e) => e.isFile())
-        .map((e) => ({
-          name: e.name,
-          path: path.join(folderPath, e.name),
-          size: fs.statSync(path.join(folderPath, e.name)).size,
-        }))
+        .map((e) => ({ name: e.name, path: path.join(folderPath, e.name), size: fs.statSync(path.join(folderPath, e.name)).size }))
         .sort((a, b) => a.name.localeCompare(b.name));
-    } catch {
-      return [];
-    }
+    } catch { return []; }
   });
 
   ipcMain.handle('open-folder', async (_event, folderPath: string) => {
     try {
-      if (!fs.existsSync(folderPath)) {
-        fs.mkdirSync(folderPath, { recursive: true });
-      }
+      if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
       const { shell } = require('electron');
       await shell.openPath(folderPath);
       return { success: true };
@@ -133,11 +114,9 @@ export function registerIpcHandlers(ctx: HandlerContext): void {
 
   ipcMain.handle('get-file-info', async (_event, filePath: string) => {
     const stat = fs.statSync(filePath);
-    const name = path.basename(filePath);
-    const ext = path.extname(filePath).toLowerCase();
     return {
-      name,
-      type: stat.isDirectory() ? 'Folder' : (ext || 'File'),
+      name: path.basename(filePath),
+      type: stat.isDirectory() ? 'Folder' : (path.extname(filePath).toLowerCase() || 'File'),
       dir: path.dirname(filePath),
       size: stat.isDirectory() ? null : stat.size,
       created: stat.birthtime.toISOString(),
@@ -151,31 +130,40 @@ export function registerIpcHandlers(ctx: HandlerContext): void {
     return db.getFiles(limit, offset);
   });
 
-  ipcMain.handle('db-get-file-count', async () => {
-    return db.getFileCount();
-  });
+  ipcMain.handle('db-get-file-count', async () => db.getFileCount());
 
-  ipcMain.handle('db-get-runs', async (_event, limit: number) => {
-    return db.getRuns(limit);
-  });
+  ipcMain.handle('db-get-runs', async (_event, limit: number) => db.getRuns(limit));
 
-  ipcMain.handle('db-get-stats', async () => {
-    return db.getStats();
-  });
+  ipcMain.handle('db-get-stats', async () => db.getStats());
 
   // --- Scanner ---
   ipcMain.handle('start-scan', async (event, config: ScanConfig) => {
     const progressCallback = (progress: any) => {
       event.sender.send('scan-progress', progress);
     };
-
     const result = await scanner.scan(config, progressCallback);
     event.sender.send('scan-complete', result);
     return result;
   });
 
-  ipcMain.handle('stop-scan', async () => {
-    scanner.stop();
+  ipcMain.handle('stop-scan', async () => scanner.stop());
+
+  // --- Organization ---
+  ipcMain.handle('generate-plan', async (_event, config: ScanConfig) => {
+    return organizer.generatePlan(config);
+  });
+
+  ipcMain.handle('execute-plan', async (_event, plans: any[], execute: boolean) => {
+    return organizer.executePlan(plans, execute);
+  });
+
+  ipcMain.handle('get-no-date-files', async () => {
+    const db2 = db.getDb();
+    return db2.prepare(`
+      SELECT path, filename, media_type FROM files
+      WHERE date_extracted IS NULL AND is_organized = 0
+      ORDER BY filename
+    `).all();
   });
 
   // --- State persistence ---
@@ -187,18 +175,13 @@ export function registerIpcHandlers(ctx: HandlerContext): void {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(statePath, JSON.stringify(state, null, 2), 'utf-8');
       return true;
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   });
 
   ipcMain.handle('load-state', async () => {
     try {
       if (!fs.existsSync(statePath)) return null;
-      const data = fs.readFileSync(statePath, 'utf-8');
-      return JSON.parse(data);
-    } catch {
-      return null;
-    }
+      return JSON.parse(fs.readFileSync(statePath, 'utf-8'));
+    } catch { return null; }
   });
 }
