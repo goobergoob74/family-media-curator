@@ -8,6 +8,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { DatabaseService } from '../services/DatabaseService';
 import { FileScannerService } from '../services/FileScannerService';
+import { DuplicateDetectionService } from '../services/DuplicateDetectionService';
 import { OrganizationService } from '../services/OrganizationService';
 import type { ScanConfig } from '../../shared/types';
 
@@ -17,11 +18,12 @@ interface HandlerContext {
   db: DatabaseService;
   scanner: FileScannerService;
   organizer: OrganizationService;
+  duplicateDetector: DuplicateDetectionService;
   mainWindowGetter: () => BrowserWindow | null;
 }
 
 export function registerIpcHandlers(ctx: HandlerContext): void {
-  const { db, scanner, organizer, mainWindowGetter } = ctx;
+  const { db, scanner, organizer, duplicateDetector, mainWindowGetter } = ctx;
 
   // --- Window controls ---
   ipcMain.on('window-minimize', () => mainWindowGetter()?.minimize());
@@ -164,6 +166,15 @@ export function registerIpcHandlers(ctx: HandlerContext): void {
       WHERE date_extracted IS NULL AND is_organized = 0
       ORDER BY filename
     `).all();
+  });
+
+  // --- Duplicate Detection ---
+  ipcMain.handle('find-duplicates', async (_event, config: any) => {
+    return duplicateDetector.findDuplicates(config);
+  });
+
+  ipcMain.handle('get-duplicate-stats', async () => {
+    return duplicateDetector.getStats();
   });
 
   // --- State persistence ---

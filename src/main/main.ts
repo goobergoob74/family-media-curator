@@ -10,6 +10,7 @@ import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import * as path from 'path';
 import { DatabaseService } from './services/DatabaseService';
 import { FileScannerService } from './services/FileScannerService';
+import { DuplicateDetectionService } from './services/DuplicateDetectionService';
 import { OrganizationService } from './services/OrganizationService';
 import { registerIpcHandlers } from './ipc/handlers';
 
@@ -17,6 +18,7 @@ let mainWindow: BrowserWindow | null = null;
 let db: DatabaseService;
 let scanner: FileScannerService;
 let organizer: OrganizationService;
+let duplicateDetector: DuplicateDetectionService;
 
 const isDev = process.argv.includes('--dev');
 
@@ -61,9 +63,10 @@ app.whenReady().then(async () => {
   // Initialize services
   scanner = new FileScannerService(db);
   organizer = new OrganizationService(db);
+  duplicateDetector = new DuplicateDetectionService(db);
 
   // Register IPC handlers
-  registerIpcHandlers({ db, scanner, organizer, mainWindowGetter: () => mainWindow });
+  registerIpcHandlers({ db, scanner, organizer, duplicateDetector, mainWindowGetter: () => mainWindow });
 
   await createWindow();
 
