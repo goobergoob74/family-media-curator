@@ -1,6 +1,6 @@
 .jobs-panel {
-  width: 320px;
-  min-width: 250px;
+  width: 340px;
+  min-width: 280px;
   flex-shrink: 0;
 }
 
@@ -25,6 +25,9 @@
   cursor: pointer;
   margin-bottom: -1px;
   transition: color 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .jobs-tab:hover {
@@ -50,7 +53,7 @@
 .scan-config {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .scan-config-section {
@@ -78,6 +81,10 @@
   flex: 1;
 }
 
+.scan-config-row .select {
+  flex: 1;
+}
+
 .scan-checkbox {
   display: flex;
   align-items: center;
@@ -90,23 +97,74 @@
 
 .scan-checkbox input[type="checkbox"] {
   accent-color: var(--amber);
+  width: 14px;
+  height: 14px;
+}
+
+/* Progress */
+.scan-progress {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scan-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.scan-progress-phase {
+  font-size: 11px;
+  color: var(--amber);
+  text-transform: uppercase;
+}
+
+.scan-progress-count {
+  font-size: 11px;
+}
+
+.scan-progress-file {
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scan-progress-stats {
+  font-size: 10px;
 }
 
 /* Log tab */
 .log-tab {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.log-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
 }
 
 .log-output {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
   font-size: 11px;
-  line-height: 1.5;
+  line-height: 1.6;
+  overflow-y: auto;
 }
 
 .log-line {
   padding: 1px 0;
+  word-break: break-all;
 }
 
 /* History tab */

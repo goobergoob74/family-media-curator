@@ -9,11 +9,20 @@ import { useAppStore } from './store/appStore';
 import './styles/app.css';
 
 const App: React.FC = () => {
-  const { version, stats, loadStats } = useAppStore();
+  const { version, stats, loadStats, addLogLine } = useAppStore();
 
   useEffect(() => {
+    // Load app version
+    window.fmc.getVersion().then((v) => {
+      useAppStore.setState({ version: v });
+    });
+
+    // Load initial stats
     loadStats();
-  }, [loadStats]);
+
+    addLogLine('info', `Family Media Curator v${version} started`);
+    addLogLine('info', `Platform: ${window.fmc.getPlatform()}`);
+  }, []);
 
   return (
     <div className="app">

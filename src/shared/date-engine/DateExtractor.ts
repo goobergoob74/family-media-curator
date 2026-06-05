@@ -3,7 +3,6 @@ import {
   DateSource,
   DateExtractionResult,
   DateDiscrepancy,
-  DateSourcePriority,
   DATE_SOURCE_PRIORITIES,
   DEFAULT_MIN_YEAR,
   DEFAULT_ROGUE_DISCREPANCY_YEARS,
@@ -22,20 +21,48 @@ export interface ExtractionOptions {
 }
 
 export interface ExtractionInput {
-  exifDateTimeOriginal?: string;
-  exifCreateDate?: string;
-  exifMediaCreateDate?: string;
-  exifTrackCreateDate?: string;
-  exifModifyDate?: string;
+  // EXIF dates — can be ISO strings (from exiftool) or JS Date objects (from exifr)
+  exifDateTimeOriginal?: string | Date;
+  exifCreateDate?: string | Date;
+  exifMediaCreateDate?: string | Date;
+  exifTrackCreateDate?: string | Date;
+  exifModifyDate?: string | Date;
   exifSubsecTime?: string;
+  // Filesystem dates
   fsCreated?: Date;
   fsModified?: Date;
+  // Filename for date parsing
   filename: string;
+}
+
+function toDate(value: string | Date | undefined): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+  // Try parsing as ISO string
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function dateToCandidate(
+  date: Date,
+  source: DateSource,
+  subsec?: string
+): DateCandidate | null {
+  if (!date || isNaN(date.getTime())) return null;
+  if (date.getFullYear() < DEFAULT_MIN_YEAR) return null;
+  return {
+    source,
+    date,
+    hasSeconds: true,
+    subsecMs: subsec || '',
+  };
 }
 
 /**
  * Date extraction engine that implements the full fallback chain.
  * Ported from MediaTidy(claude) v1.2.4 with enhancements.
+ *
+ * Accepts both EXIF date strings (from exiftool) and JS Date objects (from exifr).
  */
 export class DateExtractor {
   private options: Required<ExtractionOptions>;
@@ -57,35 +84,36 @@ export class DateExtractor {
   extract(input: ExtractionInput): DateExtractionResult {
     const candidates: DateCandidate[] = [];
 
-    // 1. EXIF DateTimeOriginal (highest priority)
+    // 1. EXIF DateTimeOriginal (highest priority) — exifr returns Date objects
     if (input.exifDateTimeOriginal) {
-      const c = DateParser.parseExifDate(
-        input.exifDateTimeOriginal,
-        input.exifSubsecTime,
-        'exif:DateTimeOriginal'
-      );
+      const d = toDate(input.exifDateTimeOriginal);
+      const c = dateToCandidate(d!, 'exif:DateTimeOriginal', input.exifSubsecTime);
       if (c) candidates.push(c);
     }
 
     // 2. EXIF CreateDate
     if (input.exifCreateDate) {
-      const c = DateParser.parseExifDate(input.exifCreateDate, undefined, 'exif:CreateDate');
+      const d = toDate(input.exifCreateDate);
+      const c = dateToCandidate(d!, 'exif:CreateDate');
       if (c) candidates.push(c);
     }
 
     // 3. EXIF MediaCreateDate / TrackCreateDate (videos)
     if (input.exifMediaCreateDate) {
-      const c = DateParser.parseExifDate(input.exifMediaCreateDate, undefined, 'exif:MediaCreateDate');
+      const d = toDate(input.exifMediaCreateDate);
+      const c = dateToCandidate(d!, 'exif:MediaCreateDate');
       if (c) candidates.push(c);
     }
     if (input.exifTrackCreateDate) {
-      const c = DateParser.parseExifDate(input.exifTrackCreateDate, undefined, 'exif:TrackCreateDate');
+      const d = toDate(input.exifTrackCreateDate);
+      const c = dateToCandidate(d!, 'exif:TrackCreateDate');
       if (c) candidates.push(c);
     }
 
     // 4. EXIF ModifyDate
     if (input.exifModifyDate) {
-      const c = DateParser.parseExifDate(input.exifModifyDate, undefined, 'exif:ModifyDate');
+      const d = toDate(input.exifModifyDate);
+      const c = dateToCandidate(d!, 'exif:ModifyDate');
       if (c) candidates.push(c);
     }
 
@@ -138,9 +166,6 @@ export class DateExtractor {
     };
   }
 
-  /**
-   * Check if the chosen date has significant discrepancy with other candidates.
-   */
   private checkDiscrepancy(
     chosen: DateCandidate,
     allCandidates: DateCandidate[]
@@ -152,7 +177,6 @@ export class DateExtractor {
       const deltaDays = deltaMs / (1000 * 60 * 60 * 24);
       const deltaYears = deltaDays / 365;
 
-      // Rogue: chosen date is years earlier than another candidate
       if (deltaYears >= this.options.rogueDiscrepancyYears) {
         return {
           detected: true,
@@ -170,9 +194,6 @@ export class DateExtractor {
     return null;
   }
 
-  /**
-   * Get filename discrepancy tier when filename date differs from chosen date.
-   */
   static getFilenameDiscrepancyTier(
     nameDate: Date | null,
     chosenDate: Date | null,

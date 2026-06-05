@@ -6,6 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import exifr from 'exifr';
 import { DatabaseService } from './DatabaseService';
 import { DateExtractor, ExtractionInput } from '../../shared/date-engine/DateExtractor';
 import type { ScanConfig, ScanProgress, MediaType } from '../../shared/types';
@@ -62,6 +63,13 @@ export class FileScannerService {
       progress.filesTotal = files.length;
       onProgress({ ...progress, filesTotal: files.length });
 
+      if (files.length === 0) {
+        progress.phase = 'done';
+        progress.elapsedSeconds = Math.round((Date.now() - startTime) / 1000);
+        onProgress({ ...progress });
+        return progress;
+      }
+
       // Phase 2: Extract metadata and catalog
       progress.phase = 'extracting_metadata';
       onProgress({ ...progress });
@@ -79,15 +87,15 @@ export class FileScannerService {
         progress.elapsedSeconds = Math.round((Date.now() - startTime) / 1000);
 
         try {
-          await this.processFile(filePath, config);
+          await this.processFile(filePath);
           progress.filesProcessed++;
         } catch (err: any) {
-          progress.errors.push(`${filePath}: ${err.message}`);
+          progress.errors.push(`${path.basename(filePath)}: ${err.message}`);
           progress.filesSkipped++;
         }
 
-        // Report progress every 10 files
-        if (i % 10 === 0) {
+        // Report progress every 5 files
+        if (i % 5 === 0) {
           onProgress({ ...progress });
         }
       }
@@ -154,23 +162,71 @@ export class FileScannerService {
     return files;
   }
 
-  private async processFile(filePath: string, config: ScanConfig): Promise<void> {
+  private async processFile(filePath: string): Promise<void> {
     const stat = fs.statSync(filePath);
     const ext = path.extname(filePath).toLowerCase();
     const filename = path.basename(filePath);
-
     const mediaType: MediaType = PHOTO_EXTENSIONS.has(ext) ? 'photo' : 'video';
 
-    // Compute file hash (first 64KB for speed, full hash for small files)
+    // Compute file hash (first 64KB for speed)
     const hash = await this.computeHash(filePath, stat.size);
 
-    // Extract date using the date engine
+    // Build extraction input with filesystem dates
     const extractionInput: ExtractionInput = {
       fsCreated: stat.birthtime,
       fsModified: stat.mtime,
       filename,
     };
 
+    // Extract EXIF metadata for photos using exifr
+    let metadataJson: string | undefined;
+    if (PHOTO_EXTENSIONS.has(ext)) {
+      try {
+        const exif = await exifr.parse(filePath, {
+          tiff: true,
+          exif: true,
+          gps: true,
+          iptc: true,
+          icc: true,
+          jfif: true,
+          ifd1: true,
+        });
+
+        if (exif) {
+          // Feed EXIF dates into the extraction engine
+          extractionInput.exifDateTimeOriginal = exif.DateTimeOriginal?.toISOString?.() ?? undefined;
+          extractionInput.exifCreateDate = exif.CreateDate?.toISOString?.() ?? undefined;
+          extractionInput.exifModifyDate = exif.ModifyDate?.toISOString?.() ?? undefined;
+
+          // Subsecond time
+          if (exif.SubSecTimeOriginal) {
+            extractionInput.exifSubsecTime = String(exif.SubSecTimeOriginal);
+          }
+
+          // Store metadata summary
+          metadataJson = JSON.stringify({
+            make: exif.Make,
+            model: exif.Model,
+            width: exif.ImageWidth ?? exif.ExifImageWidth,
+            height: exif.ImageHeight ?? exif.ExifImageHeight,
+            iso: exif.ISO,
+            focalLength: exif.FocalLength,
+            aperture: exif.FNumber,
+            shutterSpeed: exif.ShutterSpeedValue,
+            orientation: exif.Orientation,
+            gps: exif.latitude && exif.longitude ? {
+              latitude: exif.latitude,
+              longitude: exif.longitude,
+              altitude: exif.GPSAltitude,
+            } : undefined,
+          });
+        }
+      } catch {
+        // exifr can't parse this file — continue with filesystem dates
+      }
+    }
+
+    // Extract date using the date engine
     const dateResult = this.dateExtractor.extract(extractionInput);
 
     // Insert into database
@@ -185,16 +241,14 @@ export class FileScannerService {
       dateExtracted: dateResult.chosenDate?.toISOString(),
       dateSource: dateResult.source ?? undefined,
       isOrganized: false,
+      metadataJson,
     });
   }
 
   private async computeHash(filePath: string, fileSize: number): Promise<string> {
     return new Promise((resolve, reject) => {
       const hash = crypto.createHash('sha256');
-      // For files > 10MB, only hash first 64KB + last 64KB for speed
-      const stream = fs.createReadStream(filePath, {
-        highWaterMark: 65536,
-      });
+      const stream = fs.createReadStream(filePath, { highWaterMark: 65536 });
 
       let bytesRead = 0;
       const maxBytes = fileSize > 10 * 1024 * 1024 ? 65536 : fileSize;
@@ -207,10 +261,7 @@ export class FileScannerService {
         }
       });
 
-      stream.on('end', () => {
-        resolve(hash.digest('hex'));
-      });
-
+      stream.on('end', () => resolve(hash.digest('hex')));
       stream.on('error', reject);
     });
   }
