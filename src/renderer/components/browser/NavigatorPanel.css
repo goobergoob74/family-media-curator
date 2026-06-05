@@ -1,0 +1,68 @@
+.navigator-panel {
+  width: 300px;
+  min-width: 200px;
+  flex-shrink: 0;
+}
+
+.navigator-body {
+  padding: 4px 0;
+}
+
+.nav-tree {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-node {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-node-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+  user-select: none;
+}
+
+.nav-node-row:hover {
+  background: var(--bg-3);
+}
+
+.nav-node-row.selected {
+  background: var(--amber-glow);
+  color: var(--amber);
+}
+
+.nav-node-arrow {
+  width: 12px;
+  font-size: 8px;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+.nav-node-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.nav-node-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-node-row.selected .nav-node-label {
+  color: var(--amber);
+}
+
+.nav-node-children {
+  margin-left: 12px;
+  border-left: 1px solid var(--border);
+}

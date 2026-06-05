@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+release/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# User data
+.mnt/
+
+# Electron rebuild
+node_modules/better-sqlite3/build/
+
+# Compiled output in src (from composite tsconfig)
+src/**/*.js
+src/**/*.d.ts
+src/**/*.map
+!src/**/*.ts
+!src/**/*.tsx

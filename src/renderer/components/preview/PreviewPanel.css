@@ -1,0 +1,15 @@
+.preview-panel {
+  flex: 1;
+  min-width: 300px;
+}
+
+.preview-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state-hint {
+  font-size: 11px;
+  margin-top: 4px;
+}

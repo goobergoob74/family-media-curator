@@ -1,0 +1,104 @@
+/* ============================================================
+   Family Media Curator — Global Styles
+   Version: 0.0.1
+   Aesthetic: Industrial precision — near-black base, amber accent
+   Font: DM Mono (monospace) + Barlow Condensed (UI labels)
+   ============================================================ */
+
+:root {
+  /* Core palette */
+  --bg-0: #080a0d;
+  --bg-1: #0d1017;
+  --bg-2: #131720;
+  --bg-3: #1a2030;
+  --bg-4: #232b3d;
+
+  /* Borders */
+  --border: #1e2535;
+  --border-hi: #2d3a52;
+
+  /* Accent colors */
+  --amber: #f0a500;
+  --amber-dim: #a06e00;
+  --amber-glow: rgba(240, 165, 0, 0.13);
+  --teal: #00c8a0;
+  --teal-dim: #007a62;
+  --red: #e05050;
+  --red-dim: #6b2020;
+  --green: #48d68a;
+  --green-dim: #1a5c38;
+  --blue: #4a9eff;
+  --blue-dim: #1a4a7a;
+
+  /* Text */
+  --text-0: #e8ecf4;
+  --text-1: #9aa3b8;
+  --text-2: #5a6480;
+  --text-3: #3a4260;
+
+  /* Typography */
+  --font-mono: 'DM Mono', monospace;
+  --font-ui: 'Barlow Condensed', sans-serif;
+
+  /* Layout */
+  --radius: 4px;
+  --titlebar-height: 36px;
+  --menubar-height: 32px;
+  --panel-gap: 2px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-0);
+  color: var(--text-0);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-1);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-4);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hi);
+}
+
+/* Selection */
+::selection {
+  background: var(--amber-dim);
+  color: var(--text-0);
+}
+
+/* Focus outline */
+:focus-visible {
+  outline: 1px solid var(--amber);
+  outline-offset: -1px;
+}
+
+/* Utility classes */
+.text-mono { font-family: var(--font-mono); }
+.text-0 { color: var(--text-0); }
+.text-1 { color: var(--text-1); }
+.text-2 { color: var(--text-2); }
+.text-3 { color: var(--text-3); }
+.text-amber { color: var(--amber); }
+.text-teal { color: var(--teal); }
+.text-red { color: var(--red); }
+.text-green { color: var(--green); }

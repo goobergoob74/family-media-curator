@@ -1,0 +1,118 @@
+.jobs-panel {
+  width: 320px;
+  min-width: 250px;
+  flex-shrink: 0;
+}
+
+.jobs-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin: -8px -12px;
+  padding: 0 12px;
+}
+
+.jobs-tab {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.jobs-tab:hover {
+  color: var(--text-0);
+}
+
+.jobs-tab.active {
+  color: var(--amber);
+  border-bottom-color: var(--amber);
+}
+
+.jobs-body {
+  padding: 12px;
+}
+
+/* Scan tab */
+.scan-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scan-config {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scan-config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scan-config-label {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.scan-config-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.scan-config-row .input {
+  flex: 1;
+}
+
+.scan-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-1);
+  cursor: pointer;
+  user-select: none;
+}
+
+.scan-checkbox input[type="checkbox"] {
+  accent-color: var(--amber);
+}
+
+/* Log tab */
+.log-tab {
+  height: 100%;
+}
+
+.log-output {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.log-line {
+  padding: 1px 0;
+}
+
+/* History tab */
+.history-tab {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
